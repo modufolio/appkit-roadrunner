@@ -1,0 +1,38 @@
+/vendor/
+/node_modules/
+
+/.env
+/.env.local
+
+/var/*
+!/var/.gitkeep
+
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Database
+/database/*.db
+/database/*.sqlite
+/database/*.sqlite3
+*.db-shm
+*.db-wal
+
+
+/public/assets/css/app.css
+/public/assets/js/app.js
+/public/assets/js/app.js.map
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# PHPUnit
+/.phpunit.cache
+/.phpunit.result.cache
+/coverage/
+
+# Composer / npm
+package-lock.json
+composer.lock

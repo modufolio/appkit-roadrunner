@@ -1,0 +1,15 @@
+{
+    "name": "appkit-skeleton",
+    "type": "module",
+    "scripts": {
+        "build:css": "npx @tailwindcss/cli -i ./assets/css/app.css -o ./public/assets/css/app.css --minify",
+        "build:js": "node esbuild.config.js",
+        "build": "npm run build:css && npm run build:js",
+        "watch": "node esbuild.config.js --watch"
+    },
+    "devDependencies": {
+        "@tailwindcss/cli": "^4.1.5",
+        "esbuild": "^0.28.0",
+        "tailwindcss": "^4.1.5"
+    }
+}
