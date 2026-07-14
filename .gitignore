@@ -1,6 +1,10 @@
 /vendor/
 /node_modules/
 
+# RoadRunner server binary — platform-specific, ~59MB, fetched per-environment
+# via `vendor/bin/rr get-binary`.
+/bin/rr
+
 /.env
 /.env.local
 

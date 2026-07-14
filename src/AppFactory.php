@@ -20,7 +20,10 @@ use Symfony\Component\Routing\Loader\PhpFileLoader;
 
 class AppFactory
 {
-    public static function create(string $baseDir): AppInterface
+    /**
+     * @param class-string<App> $appClass Application class to instantiate (e.g. RoadRunnerApp for the RoadRunner runtime)
+     */
+    public static function create(string $baseDir, string $appClass = App::class): AppInterface
     {
         // Allow this app's User entity to be unserialized from session-stored
         // auth tokens. Without this, the framework's hardened TokenUnserializer
@@ -43,7 +46,7 @@ class AppFactory
             ? $baseDir."/config/{$env}/doctrine.php"
             : $baseDir.'/config/doctrine.php';
 
-        return (new App(
+        return (new $appClass(
             baseDir: $baseDir,
             routeLoader: $routeLoader,
             userProviderClass: UserRepository::class,

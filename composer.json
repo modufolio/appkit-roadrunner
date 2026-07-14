@@ -11,7 +11,10 @@
     "require": {
         "php": "^8.2",
         "modufolio/appkit": "^0.3",
-        "modufolio/http": "^0.1.0"
+        "modufolio/http": "^0.1.0",
+        "spiral/roadrunner": "^2025.1",
+        "spiral/roadrunner-cli": "^2.7",
+        "spiral/roadrunner-http": "^4.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^12",

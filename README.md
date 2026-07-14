@@ -22,6 +22,9 @@ Useful starting points:
 - A `User` entity + `UserRepository` wired into the security firewall
 - Form-login authenticator on `/login`
 - SQLite via Doctrine ORM + Doctrine Migrations
+- [RoadRunner](https://roadrunner.dev) application server with a worker-safe
+  session runtime (`RoadRunnerApp` + `RoadRunnerApplicationState`), alongside
+  the built-in PHP dev server
 - Tailwind CSS 4 + esbuild for assets
 - PHPUnit, PHPStan, PHP-CS-Fixer
 
@@ -49,12 +52,61 @@ composer start
 # → http://localhost:8000
 ```
 
+## Running under RoadRunner
+
+The app ships with a [RoadRunner](https://roadrunner.dev) runtime for long-lived
+PHP workers, giving much higher throughput than the per-request PHP dev server.
+
+The server binary is in this repo (it is platform-specific and ~59 MB).
+Download it once per environment with the bundled CLI:
+
+```bash
+vendor/bin/rr get-binary   # writes bin/rr for your OS/arch
+```
+
+Then serve:
+
+```bash
+./bin/rr serve   # reads .rr.yaml → http://localhost:8080
+```
+
+How it fits together:
+
+```
+worker.php                       RoadRunner PSR-7 worker entrypoint
+.rr.yaml                         Server config (workers, static files, logs)
+src/RoadRunnerApp.php            Kernel subclass — attaches Set-Cookie on new sessions
+src/RoadRunnerApplicationState.php   Worker-safe session + request state
+```
+
+Because workers are long-lived, the runtime uses a dedicated
+`RoadRunnerApplicationState` that disables PHP's automatic session-cookie
+handling and resets session globals between requests; `RoadRunnerApp` then
+attaches `Set-Cookie` to the PSR-7 response on new sessions.
+
+### Production notes
+
+- Set **`APP_ENV=prod`** in `.env`. This enables the compiled route cache
+  (`var/cache/router`) and the Doctrine metadata/query filesystem cache.
+- `.rr.yaml` runs workers with **`XDEBUG_MODE=off`** — Xdebug loaded in
+  long-lived workers roughly halves throughput, so keep it disabled there.
+- `var/cache/*` is a build artifact. Clear it (or warm it during deploy)
+  whenever routes or entities change, since prod caches don't auto-invalidate.
+- Commit `composer.lock` for a deployable app so production installs the exact
+  tested dependency versions.
+
 ## Project layout
 
 ```
+worker.php            RoadRunner PSR-7 worker entrypoint
+.rr.yaml              RoadRunner server config
+bin/rr                RoadRunner binary (gitignored; `vendor/bin/rr get-binary`)
+bin/console           CLI entrypoint
 src/                  Application code (PSR-4: App\)
   App.php             Kernel subclass
-  AppFactory.php      Boots the kernel
+  AppFactory.php      Boots the kernel (optional app class, e.g. RoadRunnerApp)
+  RoadRunnerApp.php   Kernel subclass for the RoadRunner runtime
+  RoadRunnerApplicationState.php  Worker-safe session + request state
   Controller/         HTTP controllers
   Entity/             Doctrine entities
   Repository/         Doctrine repositories
