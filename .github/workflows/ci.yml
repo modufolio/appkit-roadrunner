@@ -1,0 +1,75 @@
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    tests:
+        name: Unit tests & static analysis
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  extensions: intl, gd, exif, zip, sqlite3, pdo_sqlite
+                  coverage: none
+
+            - uses: ramsey/composer-install@v3
+
+            - run: vendor/bin/phpunit --no-coverage
+
+            - run: php -d memory_limit=1G vendor/bin/phpstan analyse --configuration phpstan.php --no-progress
+
+    roadrunner-smoke:
+        name: RoadRunner smoke (${{ matrix.session-driver }} sessions)
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                session-driver: [file, redis]
+
+        services:
+            redis:
+                image: redis:7-alpine
+                ports:
+                    - 6379:6379
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  extensions: intl, gd, exif, zip, sqlite3, pdo_sqlite, redis
+                  coverage: none
+
+            - uses: ramsey/composer-install@v3
+
+            - name: Prepare application
+              run: |
+                  cp .env.example .env
+                  php -r "echo 'REMEMBER_ME_SECRET=' . bin2hex(random_bytes(32)) . PHP_EOL;" >> .env
+                  if [ "${{ matrix.session-driver }}" = "redis" ]; then
+                      printf 'SESSION_DRIVER=redis\nREDIS_URL=redis://127.0.0.1:6379\n' >> .env
+                  fi
+                  php bin/console orm:schema-tool:create
+                  php bin/console app:add-user ci@example.com cipass123
+
+            - name: Download RoadRunner binary
+              run: vendor/bin/rr get-binary
+
+            - name: Start RoadRunner
+              # One worker on purpose: every request hits the same process, so
+              # the smoke test's state-isolation assertions are deterministic
+              # instead of depending on which worker the scheduler picks.
+              run: |
+                  ./rr serve -o http.pool.num_workers=1 &
+                  curl --retry 15 --retry-connrefused --retry-delay 1 -sf \
+                      "http://127.0.0.1:2114/health?plugin=http" > /dev/null
+
+            - name: Run smoke test
+              run: bash tests/smoke/login-flow.sh ci@example.com cipass123

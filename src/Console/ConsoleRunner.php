@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console;
 
+use App\AppFactory;
 use App\Command\AddUserCommand;
+use App\Command\JobPushCommand;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Tools\Console as DBALConsole;
 use Doctrine\Migrations\Configuration\EntityManager\ExistingEntityManager;
@@ -26,8 +28,11 @@ use Doctrine\Migrations\Tools\Console\Command\VersionCommand;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\Driver\AttributeDriver;
+use Doctrine\ORM\Tools\Console\Command\ClearCache\CollectionRegionCommand;
+use Doctrine\ORM\Tools\Console\Command\ClearCache\EntityRegionCommand;
 use Doctrine\ORM\Tools\Console\Command\ClearCache\MetadataCommand;
 use Doctrine\ORM\Tools\Console\Command\ClearCache\QueryCommand;
+use Doctrine\ORM\Tools\Console\Command\ClearCache\QueryRegionCommand;
 use Doctrine\ORM\Tools\Console\Command\ClearCache\ResultCommand;
 use Doctrine\ORM\Tools\Console\Command\GenerateProxiesCommand;
 use Doctrine\ORM\Tools\Console\Command\InfoCommand;
@@ -39,13 +44,17 @@ use Doctrine\ORM\Tools\Console\Command\SchemaTool\UpdateCommand;
 use Doctrine\ORM\Tools\Console\Command\ValidateSchemaCommand;
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\ConnectionFromManagerProvider;
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
+use Modufolio\Appkit\Command\ControllersDebugCommand;
+use Modufolio\Appkit\Command\FirewallDebugCommand;
 use Modufolio\Appkit\Command\MakerCommand;
 use Modufolio\Appkit\Command\RouterDebugCommand;
+use Modufolio\Appkit\Command\SecurityValidateCommand;
 use Modufolio\Appkit\Console\Doctrine\DoctrineHelper;
 use Modufolio\Appkit\Console\Doctrine\EntityClassGenerator;
 use Modufolio\Appkit\Console\FileManager;
 use Modufolio\Appkit\Console\Generator;
 use Modufolio\Appkit\Console\Maker\MakeEntity;
+use Modufolio\Appkit\Core\AppInterface;
 use Modufolio\Appkit\Doctrine\OrmConfigurator;
 use Modufolio\Appkit\Routing\Loader\AttributeClassLoader;
 use Modufolio\Appkit\Routing\Router;
@@ -75,6 +84,7 @@ final class ConsoleRunner
     public Application $cli;
     private Router $router;
     private ?EntityManagerInterface $entityManager = null;
+    private ?AppInterface $app = null;
     /** @var array<string, string> */
     private array $fileMap = [];
     private ?string $env = null;
@@ -86,10 +96,19 @@ final class ConsoleRunner
     public function __construct(
         private $classLoader,
         private string $userClass,
+        /** @var non-empty-string */
         private string $projectDir,
     ) {
         $input = new ArgvInput();
         $this->env = $this->getEnvironmentFromInput($input);
+
+        // Propagate the resolved environment before anything reads APP_ENV:
+        // AppFactory (via app()) and the doctrine config below both key off it.
+        if (null !== $this->env) {
+            putenv("APP_ENV={$this->env}");
+            $_SERVER['APP_ENV'] = $this->env;
+            $_ENV['APP_ENV'] = $this->env;
+        }
 
         $output = new ConsoleOutput();
         $io = new SymfonyStyle($input, $output);
@@ -106,6 +125,16 @@ final class ConsoleRunner
         $this->fileMap['doctrine'] = $configFile;
         $this->cli = $this->createApplication();
         $this->router = $this->createRouter();
+    }
+
+    public function app(): AppInterface
+    {
+        if (null === $this->app) {
+            $this->app = AppFactory::create($this->projectDir);
+            $this->app->initializeConsoleState();
+        }
+
+        return $this->app;
     }
 
     public function entityManager(): EntityManagerInterface
@@ -158,8 +187,12 @@ final class ConsoleRunner
                 Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator(),
                 $userRepo,
             ),
+            new JobPushCommand(),
             $this->createMakerCommand(),
+            new ControllersDebugCommand($this->app(), $this->router),
             new RouterDebugCommand($this->router),
+            new FirewallDebugCommand($this->app()),
+            new SecurityValidateCommand($this->app()),
         ]);
     }
 
@@ -170,8 +203,11 @@ final class ConsoleRunner
 
         return $this->addCommands([
             new DBALConsole\Command\RunSqlCommand($connectionProvider),
+            new CollectionRegionCommand($emProvider),
+            new EntityRegionCommand($emProvider),
             new MetadataCommand($emProvider),
             new QueryCommand($emProvider),
+            new QueryRegionCommand($emProvider),
             new ResultCommand($emProvider),
             new CreateCommand($emProvider),
             new UpdateCommand($emProvider),

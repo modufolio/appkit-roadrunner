@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Logger\FileLogger;
 use App\Repository\UserRepository;
 use Modufolio\Appkit\Core\AppInterface;
+use Modufolio\Appkit\DependencyInjection\ServiceConfigurator;
 use Modufolio\Appkit\Routing\Loader\AttributeClassLoader;
 use Modufolio\Appkit\Security\SecurityConfigurator;
 use Modufolio\Appkit\Security\TokenUnserializer;
@@ -41,6 +42,9 @@ class AppFactory
         $security = new SecurityConfigurator();
         (require $baseDir.'/config/security.php')($security);
 
+        $services = new ServiceConfigurator();
+        (require $baseDir.'/config/services.php')($services);
+
         $env = env('APP_ENV');
         $doctrineConfig = null !== $env && is_file($baseDir."/config/{$env}/doctrine.php")
             ? $baseDir."/config/{$env}/doctrine.php"
@@ -53,12 +57,10 @@ class AppFactory
             logger: new FileLogger($baseDir.'/storage/logs'),
             authenticators: F::load($baseDir.'/config/authenticators.php', []),
             controllers: F::load($baseDir.'/config/controllers.php', []),
-            factories: F::load($baseDir.'/config/factories.php', []),
             fileMap: [
                 'doctrine' => $doctrineConfig,
-                'interfaces' => $baseDir.'/config/interfaces.php',
             ],
             repositories: F::load($baseDir.'/config/repositories.php', []),
-        ))->configureSecurity($security)->boot();
+        ))->configureServices($services)->configureSecurity($security)->boot();
     }
 }

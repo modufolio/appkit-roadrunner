@@ -3,6 +3,12 @@ version: '3'
 rpc:
     listen: tcp://127.0.0.1:6001
 
+# Health endpoints for load balancers, orchestrators and CI:
+#   GET :2114/health?plugin=http → 204 once the HTTP workers are up
+#   GET :2114/ready?plugin=http  → 204 while workers are free to take requests
+status:
+    address: 127.0.0.1:2114
+
 server:
     command: "php worker.php"
     relay: pipes
@@ -20,6 +26,23 @@ http:
         max_jobs: 0
         supervisor:
             max_worker_memory: 128
+
+# First-party jobs plugin: an in-memory queue consumed by the same PHP worker
+# script (worker.php branches on RR_MODE). Push from PHP over the RPC socket
+# above. Swap `driver: memory` for redis/amqp/sqs per pipeline when a portal
+# needs durability — the PHP side does not change.
+jobs:
+    pool:
+        num_workers: 2
+        supervisor:
+            max_worker_memory: 128
+    consume: ["local"]
+    pipelines:
+        local:
+            driver: memory
+            config:
+                priority: 10
+                prefetch: 100
 
 logs:
     mode: production

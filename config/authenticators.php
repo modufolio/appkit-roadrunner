@@ -26,6 +26,18 @@ return [
         );
     },
     'remember_me' => function (ContainerInterface $container) {
-        return $container->get(RememberMeAuthenticator::class);
+        return new RememberMeAuthenticator(
+            userProvider: $container->get(UserRepository::class),
+            options: [
+                'secret' => env()->getRequired('REMEMBER_ME_SECRET'),
+                'cookie_name' => 'REMEMBERME',
+                'cookie_lifetime' => 2592000, // 30 days
+                // Mirror the session cookie's Secure flag so both follow the
+                // same HTTP/HTTPS policy (false in dev, true behind HTTPS).
+                'cookie_secure' => env()->getBool('COOKIE_SECURE', true),
+                'cookie_httponly' => true,
+                'cookie_samesite' => 'Lax',
+            ],
+        );
     },
 ];

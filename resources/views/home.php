@@ -26,6 +26,6 @@
     <ul class="mt-10 grid gap-3 text-sm">
         <li><a class="text-blue-600 hover:underline" href="https://github.com/modufolio/appkit">Documentation</a></li>
         <li><span class="text-gray-500">Routes are declared with <code>#[Route]</code> attributes on controllers.</span></li>
-        <li><span class="text-gray-500">DI wiring lives in <code>config/controllers.php</code>, <code>config/factories.php</code>, <code>config/interfaces.php</code>.</span></li>
+        <li><span class="text-gray-500">DI wiring lives in <code>config/controllers.php</code> and <code>config/services.php</code>.</span></li>
     </ul>
 </main>

@@ -18,9 +18,9 @@ class RoadRunnerApp extends App
 
         $this->state = new RoadRunnerApplicationState($request, $this->baseDir, $this->firewallConfig);
 
-        $this->requestCount++;
-        $debug       = $this->environment()->isDev() && $request->hasHeader('X-Debug');
-        $startTime   = $debug ? hrtime(true) : 0;
+        ++$this->requestCount;
+        $debug = $this->environment()->isDev() && $request->hasHeader('X-Debug');
+        $startTime = $debug ? hrtime(true) : 0;
         $startMemory = $debug ? memory_get_usage() : 0;
 
         try {
@@ -40,11 +40,11 @@ class RoadRunnerApp extends App
 
     private function attachDebugHeaders(
         ResponseInterface $response,
-        int $startTime,
-        int $startMemory
+        int|float $startTime,
+        int $startMemory,
     ): ResponseInterface {
         $elapsedMs = (hrtime(true) - $startTime) / 1_000_000;
-        $deltaKb   = (memory_get_usage() - $startMemory) / 1024;
+        $deltaKb = (memory_get_usage() - $startMemory) / 1024;
 
         return $response
             ->withHeader('X-Worker-PID', (string) getmypid())
@@ -65,7 +65,7 @@ class RoadRunnerApp extends App
         }
 
         $sessionId = $this->state->getSessionId();
-        if ($sessionId === null) {
+        if (null === $sessionId) {
             return $response;
         }
 
