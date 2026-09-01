@@ -52,6 +52,9 @@ npm run build
 # Create database schema (or use migrations)
 php bin/console orm:schema-tool:create
 
+# Create a user to sign in with (everything except /login requires auth)
+php bin/console app:add-user you@example.com your-password
+
 # Run the dev server
 composer start
 # → http://localhost:8000

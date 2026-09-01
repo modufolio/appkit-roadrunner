@@ -117,6 +117,11 @@ class App extends Kernel
     {
         $this->state?->reset();
         $this->state = null;
+
+        // Modules drop their per-request state and onReset lease callbacks
+        // (pooled connections, buffers) run — the worker-mode half of the
+        // module contract.
+        $this->resetModules();
         $this->debugStack->resetQueries();
         $this->entityManagerFactory?->reset();
         $this->emitter = null;

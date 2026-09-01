@@ -10,7 +10,7 @@
     ],
     "require": {
         "php": "^8.2",
-        "modufolio/appkit": "^0.14",
+        "modufolio/appkit": "^0.15",
         "modufolio/http": "^0.2",
         "spiral/roadrunner": "^2025.1",
         "spiral/roadrunner-cli": "^2.7",
